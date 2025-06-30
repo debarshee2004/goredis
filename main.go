@@ -14,8 +14,8 @@ type Config struct {
 }
 
 type Message struct {
-	// cmd  Command
-	// peer *Peer
+	cmd  Command
+	peer *Peer
 }
 
 type Server struct {
