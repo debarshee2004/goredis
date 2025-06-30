@@ -27,6 +27,23 @@ type Server struct {
 	storage *Storage
 }
 
+func NewServer(cfg Config) *Server {
+	if len(cfg.listenPortAddress) == 0 {
+		cfg.listenPortAddress = defaultListenPortAddress
+	}
+
+	return &Server{
+		Config:            cfg,
+		peers:             make(map[*Peer]bool),
+		addPeerChannel:    make(chan *Peer),
+		deleteChannelPeer: make(chan *Peer),
+		quitChannel:       make(chan struct{}),
+		messageChannel:    make(chan Message),
+		storage:           NewStorage(),
+	}
+
+}
+
 func main() {
 
 }

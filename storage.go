@@ -11,3 +11,12 @@ type Storage struct {
 	expiry   map[string]time.Time
 	counters map[string]int64
 }
+
+func NewStorage() *Storage {
+	return &Storage{
+		data:     make(map[string][]byte),
+		expiry:   make(map[string]time.Time),
+		counters: make(map[string]int64),
+	}
+
+}
