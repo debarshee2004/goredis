@@ -96,3 +96,34 @@ type DecrByCommand struct {
 	key       []byte
 	decrement int64
 }
+
+type MGetCommand struct {
+	keys [][]byte
+}
+
+type MSetCommand struct {
+	pairs map[string][]byte
+}
+
+type GetSetCommand struct {
+	key []byte
+	val []byte
+}
+
+type KeysCommand struct {
+	pattern string
+}
+
+type FlushAllCommand struct{}
+
+type HelloCommand struct {
+	value string
+}
+
+type ClientCommand struct {
+	value string
+}
+
+type PingCommand struct {
+	message string
+}
