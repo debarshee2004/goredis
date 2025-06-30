@@ -78,3 +78,21 @@ type SetRangeCommand struct {
 	offset int
 	value  []byte
 }
+
+type IncrCommand struct {
+	key []byte
+}
+
+type DecrCommand struct {
+	key []byte
+}
+
+type IncrByCommand struct {
+	key       []byte
+	increment int64
+}
+
+type DecrByCommand struct {
+	key       []byte
+	decrement int64
+}
