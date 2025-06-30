@@ -45,3 +45,36 @@ type SetCommand struct {
 	val    []byte
 	expiry time.Duration // Optional TTL
 }
+
+type GetCommand struct {
+	key []byte
+}
+
+type DelCommand struct {
+	keys [][]byte
+}
+
+type ExistsCommand struct {
+	keys [][]byte
+}
+
+type AppendCommand struct {
+	key []byte
+	val []byte
+}
+
+type StrlenCommand struct {
+	key []byte
+}
+
+type GetRangeCommand struct {
+	key   []byte
+	start int
+	end   int
+}
+
+type SetRangeCommand struct {
+	key    []byte
+	offset int
+	value  []byte
+}
