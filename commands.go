@@ -92,13 +92,33 @@ type ExistsCommand struct {
 	keys [][]byte
 }
 
+func (c ExistsCommand) Execute(storage *Storage) ([]byte, error) {
+	count := 0
+	for _, key := range c.keys {
+		if storage.Exists(key) {
+			count++
+		}
+	}
+	return []byte(strconv.Itoa(count)), nil
+}
+
 type AppendCommand struct {
 	key []byte
 	val []byte
 }
 
+func (c AppendCommand) Execute(storage *Storage) ([]byte, error) {
+	length := storage.Append(c.key, c.val)
+	return []byte(strconv.Itoa(length)), nil
+}
+
 type StrlenCommand struct {
 	key []byte
+}
+
+func (c StrlenCommand) Execute(storage *Storage) ([]byte, error) {
+	length := storage.Strlen(c.key)
+	return []byte(strconv.Itoa(length)), nil
 }
 
 type GetRangeCommand struct {
