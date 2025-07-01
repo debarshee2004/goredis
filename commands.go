@@ -216,11 +216,33 @@ type GetSetCommand struct {
 	val []byte
 }
 
+func (c GetSetCommand) Execute(storage *Storage) ([]byte, error) {
+	oldVal, exists := storage.GetSet(c.key, c.val)
+	if !exists {
+		return nil, fmt.Errorf("key not found")
+	}
+	return oldVal, nil
+}
+
 type KeysCommand struct {
 	pattern string
 }
 
+func (c KeysCommand) Execute(storage *Storage) ([]byte, error) {
+	keys := storage.Keys(c.pattern)
+	keyBytes := make([][]byte, len(keys))
+	for i, key := range keys {
+		keyBytes[i] = []byte(key)
+	}
+	return respWriteArray(keyBytes), nil
+}
+
 type FlushAllCommand struct{}
+
+func (c FlushAllCommand) Execute(storage *Storage) ([]byte, error) {
+	storage.FlushAll()
+	return []byte("OK"), nil
+}
 
 type HelloCommand struct {
 	value string
