@@ -197,8 +197,18 @@ type MGetCommand struct {
 	keys [][]byte
 }
 
+func (c MGetCommand) Execute(storage *Storage) ([]byte, error) {
+	results := storage.MGet(c.keys)
+	return respWriteArray(results), nil
+}
+
 type MSetCommand struct {
 	pairs map[string][]byte
+}
+
+func (c MSetCommand) Execute(storage *Storage) ([]byte, error) {
+	err := storage.MSet(c.pairs)
+	return []byte("OK"), err
 }
 
 type GetSetCommand struct {
