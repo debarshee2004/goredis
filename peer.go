@@ -12,12 +12,40 @@ import (
 	"github.com/tidwall/resp"
 )
 
+/*
+Peer represents a client connection
+
+This struct encapsulates everything needed to handle a single client connection.
+It acts as a bridge between the network connection and the main server.
+
+Architecture:
+  - connect: The actual TCP connection to the client
+  - messageChannel: Channel to send parsed commands to the main server
+  - deleteChannel: Channel to notify the server when this client disconnects
+
+The peer runs in its own goroutine and continuously:
+ 1. Reads RESP data from the client
+ 2. Parses it into Command structs
+ 3. Sends commands to the server via messageChannel
+ 4. Sends responses back to the client
+*/
 type Peer struct {
 	connect        net.Conn
 	messageChannel chan Message
 	deleteChannel  chan *Peer
 }
 
+/*
+NewPeer creates a new peer instance
+
+This is the constructor for Peer objects. It takes the network connection
+and the channels needed to communicate with the main server.
+
+Parameters:
+  - connect: The TCP connection from net.Accept()
+  - messageChannel: Channel where parsed commands will be sent
+  - deleteChannel: Channel to notify when this peer disconnects
+*/
 func NewPeer(connect net.Conn, messageChannel chan Message, deleteChannel chan *Peer) *Peer {
 	return &Peer{
 		connect:        connect,
@@ -26,14 +54,44 @@ func NewPeer(connect net.Conn, messageChannel chan Message, deleteChannel chan *
 	}
 }
 
+/*
+Send sends a message to the client
+
+This method writes response data back to the client over the TCP connection.
+It's used to send command results, errors, and other responses.
+
+Parameters:
+  - message: The response data to send (usually RESP-formatted)
+
+Returns: number of bytes written and any error
+*/
 func (p *Peer) Send(message []byte) (int, error) {
 	return p.connect.Write(message)
 }
 
+/*
+readLoop reads commands from the client connection
+
+This is the main method that runs in a goroutine for each client.
+It continuously reads RESP data from the client, parses it into commands,
+and forwards those commands to the main server for processing.
+
+The loop continues until:
+  - The client disconnects (EOF)
+  - A network error occurs
+  - The connection is closed
+
+Error handling:
+  - EOF: Normal client disconnection
+  - Parse errors: Send error response to client, continue reading
+  - Network errors: Log and disconnect the client
+*/
 func (p *Peer) readLoop() error {
+	// Create RESP reader for parsing Redis protocol data
 	rd := resp.NewReader(p.connect)
 
 	for {
+		// Read RESP value from client. This blocks until data arrives or connection closes
 		v, _, err := rd.ReadValue()
 		if err == io.EOF {
 			p.deleteChannel <- p
@@ -45,6 +103,7 @@ func (p *Peer) readLoop() error {
 			break
 		}
 
+		// Parse the RESP value into a Command struct
 		cmd, err := p.parseCommand(v)
 		if err != nil {
 			errorResp := respWriteError(fmt.Sprintf("ERR %s", err.Error()))
@@ -52,6 +111,8 @@ func (p *Peer) readLoop() error {
 			continue
 		}
 
+		// Send successfully parsed command to server for processing
+		// The server will execute the command and send a response back
 		p.messageChannel <- Message{
 			cmd:  cmd,
 			peer: p,
