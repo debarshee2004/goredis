@@ -44,7 +44,7 @@ const (
 )
 
 type Command struct {
-	// Execute(storage *Storage) ([]byte, error)
+	Execute(storage *Storage) ([]byte, error)
 }
 
 type SetCommand struct {
