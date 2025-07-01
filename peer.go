@@ -250,3 +250,29 @@ func (p *Peer) parseMGetCommand(arr []resp.Value) (Command, error) {
 
 	return MGetCommand{keys: keys}, nil
 }
+
+func (p *Peer) parseMSetCommand(arr []resp.Value) (Command, error) {
+	if len(arr) < 3 || len(arr)%2 == 0 {
+		return nil, fmt.Errorf("wrong number of arguments for 'MSET' command")
+	}
+
+	pairs := make(map[string][]byte)
+	for i := 1; i < len(arr); i += 2 {
+		key := arr[i].String()
+		val := arr[i+1].Bytes()
+		pairs[key] = val
+	}
+
+	return MSetCommand{pairs: pairs}, nil
+}
+
+func (p *Peer) parseGetSetCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'GETSET' command")
+	}
+
+	return GetSetCommand{
+		key: arr[1].Bytes(),
+		val: arr[2].Bytes(),
+	}, nil
+}
