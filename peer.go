@@ -598,6 +598,7 @@ Validation:
 Example: ["MSET", "name", "John", "age", "25"] -> set two key-value pairs
 */
 func (p *Peer) parseMSetCommand(arr []resp.Value) (Command, error) {
+	// Must have odd number of arguments: MSET key1 value1 key2 value2...
 	if len(arr) < 3 || len(arr)%2 == 0 {
 		return nil, fmt.Errorf("wrong number of arguments for 'MSET' command")
 	}
@@ -612,6 +613,15 @@ func (p *Peer) parseMSetCommand(arr []resp.Value) (Command, error) {
 	return MSetCommand{pairs: pairs}, nil
 }
 
+/*
+parseGetSetCommand parses GETSET command: GETSET key value
+
+GETSET atomically sets a key and returns the old value.
+
+Validation: Must have exactly 3 arguments (GETSET, key, value)
+
+Example: ["GETSET", "counter", "0"] -> set counter to 0, return old value
+*/
 func (p *Peer) parseGetSetCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 3 {
 		return nil, fmt.Errorf("wrong number of arguments for 'GETSET' command")
@@ -623,6 +633,17 @@ func (p *Peer) parseGetSetCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseKeysCommand parses KEYS command: KEYS pattern
+
+KEYS returns all keys matching a glob-style pattern.
+
+Validation:
+  - Must have exactly 2 arguments (KEYS, pattern)
+  - Pattern supports * wildcard
+
+Example: ["KEYS", "user:*"] -> find all keys starting with "user:"
+*/
 func (p *Peer) parseKeysCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'KEYS' command")
@@ -633,6 +654,17 @@ func (p *Peer) parseKeysCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseFlushAllCommand parses FLUSHALL command: FLUSHALL
+
+FLUSHALL removes all keys from the database.
+
+Validation:
+  - Must have exactly 1 argument (just FLUSHALL)
+  - No parameters allowed
+
+Example: ["FLUSHALL"] -> delete everything
+*/
 func (p *Peer) parseFlushAllCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 1 {
 		return nil, fmt.Errorf("wrong number of arguments for 'FLUSHALL' command")
