@@ -1,5 +1,5 @@
 run: build
-	@./bin/goredis --listenAddr :5001
+	@./bin/goredis --listenAddress :5555
 
 build:
 	@go build -o bin/goredis .
