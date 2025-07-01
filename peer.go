@@ -211,7 +211,6 @@ func (p *Peer) parseIncrByCommand(arr []resp.Value) (Command, error) {
 		return nil, fmt.Errorf("wrong number of arguments for 'INCRBY' command")
 	}
 
-	/* Parse increment value */
 	increment, err := strconv.ParseInt(arr[2].String(), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid increment value")
@@ -221,4 +220,33 @@ func (p *Peer) parseIncrByCommand(arr []resp.Value) (Command, error) {
 		key:       arr[1].Bytes(),
 		increment: increment,
 	}, nil
+}
+
+func (p *Peer) parseDecrByCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'DECRBY' command")
+	}
+
+	decrement, err := strconv.ParseInt(arr[2].String(), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid decrement value")
+	}
+
+	return DecrByCommand{
+		key:       arr[1].Bytes(),
+		decrement: decrement,
+	}, nil
+}
+
+func (p *Peer) parseMGetCommand(arr []resp.Value) (Command, error) {
+	if len(arr) < 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'MGET' command")
+	}
+
+	keys := make([][]byte, len(arr)-1)
+	for i := 1; i < len(arr); i++ {
+		keys[i-1] = arr[i].Bytes()
+	}
+
+	return MGetCommand{keys: keys}, nil
 }
