@@ -99,3 +99,26 @@ func (p *Peer) parseSetCommand(arr []resp.Value) (Command, error) {
 
 	return cmd, nil
 }
+
+func (p *Peer) parseGetCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'GET' command")
+	}
+
+	return GetCommand{
+		key: arr[1].Bytes(),
+	}, nil
+}
+
+func (p *Peer) parseDelCommand(arr []resp.Value) (Command, error) {
+	if len(arr) < 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'DEL' command")
+	}
+
+	keys := make([][]byte, len(arr)-1)
+	for i := 1; i < len(arr); i++ {
+		keys[i-1] = arr[i].Bytes()
+	}
+
+	return DelCommand{keys: keys}, nil
+}
