@@ -53,12 +53,39 @@ type SetCommand struct {
 	expiry time.Duration
 }
 
+func (c SetCommand) Execute(storage *Storage) ([]byte, error) {
+	if c.expiry > 0 {
+		err := storage.SetWithExpiry(c.key, c.val, c.expiry)
+		return []byte("OK"), err
+	}
+	err := storage.Set(c.key, c.val)
+	return []byte("OK"), err
+}
+
 type GetCommand struct {
 	key []byte
 }
 
+func (c GetCommand) Execute(storage *Storage) ([]byte, error) {
+	val, ok := storage.Get(c.key)
+	if !ok {
+		return nil, fmt.Errorf("key not found")
+	}
+	return val, nil
+}
+
 type DelCommand struct {
 	keys [][]byte
+}
+
+func (c DelCommand) Execute(storage *Storage) ([]byte, error) {
+	count := 0
+	for _, key := range c.keys {
+		if storage.Delete(key) {
+			count++
+		}
+	}
+	return []byte(strconv.Itoa(count)), nil
 }
 
 type ExistsCommand struct {
