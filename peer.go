@@ -271,6 +271,10 @@ func (p *Peer) parseSetCommand(arr []resp.Value) (Command, error) {
 		val: arr[2].Bytes(),
 	}
 
+	/*
+		Parse optional EX parameter for TTL
+		Format: SET key value EX seconds
+	*/
 	if len(arr) >= 5 && strings.ToUpper(arr[3].String()) == "EX" {
 		seconds, err := strconv.Atoi(arr[4].String())
 		if err != nil {
@@ -282,6 +286,16 @@ func (p *Peer) parseSetCommand(arr []resp.Value) (Command, error) {
 	return cmd, nil
 }
 
+/*
+parseGetCommand parses GET command: GET key
+
+GET is simple - just a key lookup.
+
+Validation:
+  - Must have exactly 2 arguments (GET, key)
+
+Example: ["GET", "name"] -> GetCommand{key: "name"}
+*/
 func (p *Peer) parseGetCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'GET' command")
@@ -292,11 +306,25 @@ func (p *Peer) parseGetCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseDelCommand parses DEL command: DEL key [key ...]
+
+DEL can delete multiple keys in one command.
+
+Validation:
+  - Must have at least 2 arguments (DEL, key1, ...)
+  - Each additional argument is another key to delete
+
+Examples:
+  - ["DEL", "key1"] -> delete one key
+  - ["DEL", "key1", "key2", "key3"] -> delete three keys
+*/
 func (p *Peer) parseDelCommand(arr []resp.Value) (Command, error) {
 	if len(arr) < 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'DEL' command")
 	}
 
+	// Extract all keys (everything after the command name)
 	keys := make([][]byte, len(arr)-1)
 	for i := 1; i < len(arr); i++ {
 		keys[i-1] = arr[i].Bytes()
@@ -305,6 +333,19 @@ func (p *Peer) parseDelCommand(arr []resp.Value) (Command, error) {
 	return DelCommand{keys: keys}, nil
 }
 
+/*
+parseExistsCommand parses EXISTS command: EXISTS key [key ...]
+
+Like DEL, EXISTS can check multiple keys at once.
+
+Validation:
+  - Must have at least 2 arguments (EXISTS, key1, ...)
+  - Returns count of how many keys exist
+
+Examples:
+  - ["EXISTS", "key1"] -> check one key
+  - ["EXISTS", "key1", "key2"] -> check two keys, return count
+*/
 func (p *Peer) parseExistsCommand(arr []resp.Value) (Command, error) {
 	if len(arr) < 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'EXISTS' command")
@@ -318,6 +359,16 @@ func (p *Peer) parseExistsCommand(arr []resp.Value) (Command, error) {
 	return ExistsCommand{keys: keys}, nil
 }
 
+/*
+parseAppendCommand parses APPEND command: APPEND key value
+
+APPEND adds to the end of an existing string value.
+
+Validation:
+  - Must have exactly 3 arguments (APPEND, key, value)
+
+Example: ["APPEND", "greeting", " World"] -> append " World" to greeting
+*/
 func (p *Peer) parseAppendCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 3 {
 		return nil, fmt.Errorf("wrong number of arguments for 'APPEND' command")
@@ -329,6 +380,16 @@ func (p *Peer) parseAppendCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseStrlenCommand parses STRLEN command: STRLEN key
+
+STRLEN returns the length of a string value.
+
+Validation:
+  - Must have exactly 2 arguments (STRLEN, key)
+
+Example: ["STRLEN", "name"] -> return length of value at "name"
+*/
 func (p *Peer) parseStrlenCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'STRLEN' command")
@@ -339,16 +400,30 @@ func (p *Peer) parseStrlenCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseGetRangeCommand parses GETRANGE command: GETRANGE key start end
+
+GETRANGE extracts a substring from a stored string.
+
+Validation:
+  - Must have exactly 4 arguments (GETRANGE, key, start, end)
+  - start and end must be valid integers
+  - Supports negative indices (count from end)
+
+Example: ["GETRANGE", "name", "0", "2"] -> get characters 0-2 from "name"
+*/
 func (p *Peer) parseGetRangeCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 4 {
 		return nil, fmt.Errorf("wrong number of arguments for 'GETRANGE' command")
 	}
 
+	// Parse start index
 	start, err := strconv.Atoi(arr[2].String())
 	if err != nil {
 		return nil, fmt.Errorf("invalid start index")
 	}
 
+	// Parse end index
 	end, err := strconv.Atoi(arr[3].String())
 	if err != nil {
 		return nil, fmt.Errorf("invalid end index")
@@ -361,11 +436,23 @@ func (p *Peer) parseGetRangeCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseSetRangeCommand parses SETRANGE command: SETRANGE key offset value
+
+SETRANGE overwrites part of a string at a specific position.
+
+Validation:
+  - Must have exactly 4 arguments (SETRANGE, key, offset, value)
+  - offset must be a valid non-negative integer
+
+Example: ["SETRANGE", "name", "0", "Jane"] -> overwrite starting at position 0
+*/
 func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 4 {
 		return nil, fmt.Errorf("wrong number of arguments for 'SETRANGE' command")
 	}
 
+	// Parse offset position
 	offset, err := strconv.Atoi(arr[2].String())
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset")
