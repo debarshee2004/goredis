@@ -673,6 +673,17 @@ func (p *Peer) parseFlushAllCommand(arr []resp.Value) (Command, error) {
 	return FlushAllCommand{}, nil
 }
 
+/*
+parseHelloCommand parses HELLO command: HELLO [protover [AUTH username password] [SETNAME clientname]]
+
+HELLO is used for protocol negotiation and client identification.
+
+Validation:
+  - Can have 1 or more arguments
+  - First optional argument is protocol version
+
+Example: ["HELLO", "3"] -> negotiate protocol version 3
+*/
 func (p *Peer) parseHelloCommand(arr []resp.Value) (Command, error) {
 	value := "2"
 	if len(arr) > 1 {
@@ -682,6 +693,17 @@ func (p *Peer) parseHelloCommand(arr []resp.Value) (Command, error) {
 	return HelloCommand{value: value}, nil
 }
 
+/*
+parseClientCommand parses CLIENT command: CLIENT subcommand [arg [arg ...]]
+
+CLIENT provides client connection management functionality.
+
+Validation:
+  - Can have 1 or more arguments
+  - First optional argument is the subcommand
+
+Example: ["CLIENT", "LIST"] -> list connected clients
+*/
 func (p *Peer) parseClientCommand(arr []resp.Value) (Command, error) {
 	value := ""
 	if len(arr) > 1 {
@@ -691,6 +713,19 @@ func (p *Peer) parseClientCommand(arr []resp.Value) (Command, error) {
 	return ClientCommand{value: value}, nil
 }
 
+/*
+parsePingCommand parses PING command: PING [message]
+
+PING tests connection and optionally echoes a message.
+
+Validation:
+  - Can have 1 or 2 arguments
+  - Optional second argument is message to echo
+
+Examples:
+  - ["PING"] -> returns "PONG"
+  - ["PING", "hello"] -> returns "hello"
+*/
 func (p *Peer) parsePingCommand(arr []resp.Value) (Command, error) {
 	message := ""
 	if len(arr) > 1 {
