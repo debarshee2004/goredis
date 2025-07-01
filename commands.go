@@ -392,15 +392,47 @@ func (c DecrByCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte(strconv.FormatInt(result, 10)), nil
 }
 
+/*
+=== MULTIPLE KEY COMMANDS ===
+
+These commands operate on multiple keys in a single operation.
+They're more efficient than multiple individual commands and can be atomic.
+*/
+
+/*
+MGetCommand represents the MGET command
+
+MGET retrieves values for multiple keys in a single operation.
+Returns an array where each position corresponds to the requested key.
+Non-existent keys return null in their position.
+
+Redis syntax: MGET key1 key2 key3...
+Example: MGET name age city (returns ["John", "25", null] if city doesn't exist)
+*/
 type MGetCommand struct {
 	keys [][]byte
 }
 
+/*
+Execute performs the MGET operation
+
+Uses the storage's MGet method to retrieve all values efficiently.
+Formats the result as a RESP array for proper protocol compliance.
+*/
 func (c MGetCommand) Execute(storage *Storage) ([]byte, error) {
 	results := storage.MGet(c.keys)
 	return respWriteArray(results), nil
 }
 
+/*
+MSetCommand represents the MSET command
+
+MSET sets multiple key-value pairs in a single atomic operation.
+Either all keys are set or none are (atomic operation).
+
+Redis syntax: MSET key1 value1 key2 value2...
+Example: MSET name "John" age "25" city "NYC"
+*/
 type MSetCommand struct {
 	pairs map[string][]byte
 }
@@ -410,6 +442,22 @@ func (c MSetCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte("OK"), err
 }
 
+/*
+=== UTILITY COMMANDS ===
+
+These commands provide additional functionality for key management,
+atomic operations, and administrative tasks.
+*/
+
+/*
+GetSetCommand represents the GETSET command
+
+GETSET atomically sets a key to a new value and returns the old value.
+This is useful for implementing atomic counters, flags, or swapping values.
+
+Redis syntax: GETSET key newvalue
+Example: GETSET counter 0 (sets counter to 0 and returns previous value)
+*/
 type GetSetCommand struct {
 	key []byte
 	val []byte
@@ -423,6 +471,20 @@ func (c GetSetCommand) Execute(storage *Storage) ([]byte, error) {
 	return oldVal, nil
 }
 
+/*
+KeysCommand represents the KEYS command
+
+KEYS returns all keys matching a given pattern. Uses simple glob-style
+pattern matching with * wildcards.
+
+WARNING: This command can be slow with large datasets as it scans all keys.
+In production Redis, this command is often disabled.
+
+Redis syntax: KEYS pattern
+Examples:
+- KEYS * (returns all keys)
+- KEYS user:* (returns all keys starting with "user:")
+*/
 type KeysCommand struct {
 	pattern string
 }
@@ -436,6 +498,16 @@ func (c KeysCommand) Execute(storage *Storage) ([]byte, error) {
 	return respWriteArray(keyBytes), nil
 }
 
+/*
+FlushAllCommand represents the FLUSHALL command
+
+FLUSHALL removes all keys from the database. This is equivalent to
+restarting with an empty database.
+
+WARNING: This operation is destructive and cannot be undone.
+
+Redis syntax: FLUSHALL
+*/
 type FlushAllCommand struct{}
 
 func (c FlushAllCommand) Execute(storage *Storage) ([]byte, error) {
