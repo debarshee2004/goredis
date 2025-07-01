@@ -276,3 +276,21 @@ func (p *Peer) parseGetSetCommand(arr []resp.Value) (Command, error) {
 		val: arr[2].Bytes(),
 	}, nil
 }
+
+func (p *Peer) parseKeysCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'KEYS' command")
+	}
+
+	return KeysCommand{
+		pattern: arr[1].String(),
+	}, nil
+}
+
+func (p *Peer) parseFlushAllCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 1 {
+		return nil, fmt.Errorf("wrong number of arguments for 'FLUSHALL' command")
+	}
+
+	return FlushAllCommand{}, nil
+}
