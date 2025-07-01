@@ -465,6 +465,17 @@ func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseIncrCommand parses INCR command: INCR key
+
+INCR increments an integer value by 1.
+
+Validation:
+  - Must have exactly 2 arguments (INCR, key)
+  - The stored value must be parseable as an integer
+
+Example: ["INCR", "counter"] -> increment counter by 1
+*/
 func (p *Peer) parseIncrCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'INCR' command")
@@ -475,6 +486,17 @@ func (p *Peer) parseIncrCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseDecrCommand parses DECR command: DECR key
+
+DECR decrements an integer value by 1.
+
+Validation:
+  - Must have exactly 2 arguments (DECR, key)
+  - The stored value must be parseable as an integer
+
+Example: ["DECR", "counter"] -> decrement counter by 1
+*/
 func (p *Peer) parseDecrCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'DECR' command")
@@ -485,6 +507,17 @@ func (p *Peer) parseDecrCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseIncrByCommand parses INCRBY command: INCRBY key increment
+
+INCRBY increments an integer value by a specified amount.
+
+Validation:
+  - Must have exactly 3 arguments (INCRBY, key, increment)
+  - increment must be a valid 64-bit integer (can be negative)
+
+Example: ["INCRBY", "score", "10"] -> add 10 to score
+*/
 func (p *Peer) parseIncrByCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 3 {
 		return nil, fmt.Errorf("wrong number of arguments for 'INCRBY' command")
@@ -501,6 +534,17 @@ func (p *Peer) parseIncrByCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseDecrByCommand parses DECRBY command: DECRBY key decrement
+
+DECRBY decrements an integer value by a specified amount.
+
+Validation:
+  - Must have exactly 3 arguments (DECRBY, key, decrement)
+  - decrement must be a valid 64-bit integer
+
+Example: ["DECRBY", "score", "5"] -> subtract 5 from score
+*/
 func (p *Peer) parseDecrByCommand(arr []resp.Value) (Command, error) {
 	if len(arr) != 3 {
 		return nil, fmt.Errorf("wrong number of arguments for 'DECRBY' command")
@@ -517,6 +561,17 @@ func (p *Peer) parseDecrByCommand(arr []resp.Value) (Command, error) {
 	}, nil
 }
 
+/*
+parseMGetCommand parses MGET command: MGET key [key ...]
+
+MGET retrieves multiple values in a single operation.
+
+Validation:
+  - Must have at least 2 arguments (MGET, key1, ...)
+  - Each additional argument is another key to retrieve
+
+Example: ["MGET", "name", "age", "city"] -> get values for all three keys
+*/
 func (p *Peer) parseMGetCommand(arr []resp.Value) (Command, error) {
 	if len(arr) < 2 {
 		return nil, fmt.Errorf("wrong number of arguments for 'MGET' command")
@@ -530,6 +585,18 @@ func (p *Peer) parseMGetCommand(arr []resp.Value) (Command, error) {
 	return MGetCommand{keys: keys}, nil
 }
 
+/*
+parseMSetCommand parses MSET command: MSET key value [key value ...]
+
+MSET sets multiple key-value pairs in one atomic operation.
+
+Validation:
+  - Must have at least 3 arguments (MSET, key1, value1, ...)
+  - Must have odd number of arguments (command + pairs)
+  - Arguments alternate: key, value, key, value, ...
+
+Example: ["MSET", "name", "John", "age", "25"] -> set two key-value pairs
+*/
 func (p *Peer) parseMSetCommand(arr []resp.Value) (Command, error) {
 	if len(arr) < 3 || len(arr)%2 == 0 {
 		return nil, fmt.Errorf("wrong number of arguments for 'MSET' command")
