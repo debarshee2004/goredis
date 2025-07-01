@@ -226,3 +226,53 @@ func (s *Storage) Decr(key []byte) (int64, error) {
 func (s *Storage) DecrBy(key []byte, decrement int64) (int64, error) {
 	return s.IncrBy(key, -decrement)
 }
+
+func (s *Storage) GetSet(key, val []byte) ([]byte, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	keyStr := string(key)
+	oldVal, exists := s.data[keyStr]
+	s.data[keyStr] = val
+
+	delete(s.expiry, keyStr)
+
+	return oldVal, exists
+}
+
+func (s *Storage) MGet(keys [][]byte) [][]byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	results := make([][]byte, len(keys))
+	for i, key := range keys {
+		keyStr := string(key)
+
+		if expTime, exists := s.expiry[keyStr]; exists {
+			if time.Now().After(expTime) {
+				results[i] = nil
+				continue
+			}
+		}
+
+		if val, exists := s.data[keyStr]; exists {
+			results[i] = val
+		} else {
+			results[i] = nil
+		}
+	}
+
+	return results
+}
+
+func (s *Storage) MSet(pairs map[string][]byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, val := range pairs {
+		s.data[key] = val
+		delete(s.expiry, key)
+	}
+
+	return nil
+}
