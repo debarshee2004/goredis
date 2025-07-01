@@ -47,8 +47,8 @@ func (p *Peer) readLoop() error {
 
 		cmd, err := p.parseCommand(v)
 		if err != nil {
-			// errorResp := respWriteError(fmt.Sprintf("ERR %s", err.Error()))
-			// p.Send(errorResp)
+			errorResp := respWriteError(fmt.Sprintf("ERR %s", err.Error()))
+			p.Send(errorResp)
 			continue
 		}
 
@@ -74,8 +74,48 @@ func (p *Peer) parseCommand(v resp.Value) (Command, error) {
 	cmdName := strings.ToUpper(arr[0].String())
 
 	switch cmdName {
+	case CommandSET:
+		return p.parseSetCommand(arr)
+	case CommandGET:
+		return p.parseGetCommand(arr)
+	case CommandDEL:
+		return p.parseDelCommand(arr)
+	case CommandEXISTS:
+		return p.parseExistsCommand(arr)
+	case CommandAPPEND:
+		return p.parseAppendCommand(arr)
+	case CommandSTRLEN:
+		return p.parseStrlenCommand(arr)
+	case CommandGETRANGE:
+		return p.parseGetRangeCommand(arr)
+	case CommandSETRANGE:
+		return p.parseSetRangeCommand(arr)
+	case CommandINCR:
+		return p.parseIncrCommand(arr)
+	case CommandDECR:
+		return p.parseDecrCommand(arr)
+	case CommandINCRBY:
+		return p.parseIncrByCommand(arr)
+	case CommandDECRBY:
+		return p.parseDecrByCommand(arr)
+	case CommandMGET:
+		return p.parseMGetCommand(arr)
+	case CommandMSET:
+		return p.parseMSetCommand(arr)
+	case CommandGETSET:
+		return p.parseGetSetCommand(arr)
+	case CommandKEYS:
+		return p.parseKeysCommand(arr)
+	case CommandFLUSHALL:
+		return p.parseFlushAllCommand(arr)
+	case CommandHELLO:
+		return p.parseHelloCommand(arr)
+	case CommandCLIENT:
+		return p.parseClientCommand(arr)
+	case CommandPING:
+		return p.parsePingCommand(arr)
 	default:
-		return nil, fmt.Errorf("unknown commands '%s'", cmdName)
+		return nil, fmt.Errorf("unknown command '%s'", cmdName)
 	}
 }
 
@@ -193,6 +233,16 @@ func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
 		key:    arr[1].Bytes(),
 		offset: offset,
 		value:  arr[3].Bytes(),
+	}, nil
+}
+
+func (p *Peer) parseIncrCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'INCR' command")
+	}
+
+	return IncrCommand{
+		key: arr[1].Bytes(),
 	}, nil
 }
 
