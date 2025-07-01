@@ -6,7 +6,7 @@ import (
 )
 
 type Storage struct {
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	data     map[string][]byte
 	expiry   map[string]time.Time
 	counters map[string]int64
@@ -106,4 +106,23 @@ func (s *Storage) Append(key, val []byte) int {
 
 	s.data[keyStr] = append(existing, val...)
 	return len(s.data[keyStr])
+}
+
+func (s *Storage) Strlen(key []byte) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	keyStr := string(key)
+
+	if expTime, exists := s.expiry[keyStr]; exists {
+		if time.Now().After(expTime) {
+			return 0
+		}
+	}
+
+	if val, exists := s.data[keyStr]; exists {
+		return len(val)
+	}
+
+	return 0
 }
