@@ -515,10 +515,31 @@ func (c FlushAllCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte("OK"), nil
 }
 
+/*
+=== CONNECTION COMMANDS ===
+
+These commands handle client-server communication, handshakes,
+and connection management.
+*/
+
+/*
+HelloCommand represents the HELLO command
+
+HELLO is used for protocol negotiation and server information.
+It returns server details in a structured format.
+
+Redis syntax: HELLO [protover]
+*/
 type HelloCommand struct {
 	value string
 }
 
+/*
+Execute returns server information
+
+Returns a map with server details formatted according to RESP protocol.
+This helps clients understand what server they're connected to.
+*/
 func (c HelloCommand) Execute(storage *Storage) ([]byte, error) {
 	spec := map[string]string{
 		"server":  "redis-clone",
@@ -529,6 +550,14 @@ func (c HelloCommand) Execute(storage *Storage) ([]byte, error) {
 	return respWriteMap(spec), nil
 }
 
+/*
+ClientCommand represents the CLIENT command
+
+CLIENT provides client connection management functionality.
+This is a simplified implementation.
+
+Redis syntax: CLIENT subcommand [arguments...]
+*/
 type ClientCommand struct {
 	value string
 }
@@ -537,6 +566,17 @@ func (c ClientCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte("OK"), nil
 }
 
+/*
+PingCommand represents the PING command
+
+PING tests the connection to the server. It can optionally echo a message.
+This is commonly used for health checks and connection testing.
+
+Redis syntax: PING [message]
+Examples:
+- PING (returns "PONG")
+- PING "hello" (returns "hello")
+*/
 type PingCommand struct {
 	message string
 }
@@ -548,6 +588,32 @@ func (c PingCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte(c.message), nil
 }
 
+/*
+=== RESP PROTOCOL HELPER FUNCTIONS ===
+
+RESP (Redis Serialization Protocol) is the protocol Redis uses for
+client-server communication. It's a simple text-based protocol.
+
+RESP Data Types:
+- Simple Strings: +OK\r\n
+- Errors: -Error message\r\n
+- Integers: :123\r\n
+- Bulk Strings: $5\r\nhello\r\n
+- Arrays: *2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n
+- Maps: %2\r\n+key1\r\n+value1\r\n+key2\r\n+value2\r\n
+
+These helper functions format our response data according to RESP.
+*/
+
+/*
+respWriteMap writes a map as RESP format
+
+Maps are used for structured data like server information.
+Format: %<count>\r\n followed by alternating keys and values.
+
+Example: {"name": "redis", "version": "1.0"}
+Becomes: %2\r\n+name\r\n+redis\r\n+version\r\n+1.0\r\n
+*/
 func respWriteMap(m map[string]string) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString("%" + fmt.Sprintf("%d\r\n", len(m)))
@@ -558,6 +624,15 @@ func respWriteMap(m map[string]string) []byte {
 	return buf.Bytes()
 }
 
+/*
+respWriteArray writes an array as RESP format
+
+Arrays are used for multi-value responses like MGET results.
+Format: *<count>\r\n followed by each element.
+
+Example: ["hello", "world", null]
+Uses the resp library for proper null handling and bulk string formatting.
+*/
 func respWriteArray(arr [][]byte) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString("*" + fmt.Sprintf("%d\r\n", len(arr)))
@@ -572,12 +647,24 @@ func respWriteArray(arr [][]byte) []byte {
 	return buf.Bytes()
 }
 
+/*
+respWriteInteger writes an integer as RESP format
+
+Integers are prefixed with : and followed by \r\n
+Example: 42 becomes :42\r\n
+*/
 func respWriteInteger(num int64) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString(":" + strconv.FormatInt(num, 10) + "\r\n")
 	return buf.Bytes()
 }
 
+/*
+respWriteError writes an error as RESP format
+
+Errors are prefixed with - and followed by \r\n
+Example: "key not found" becomes -key not found\r\n
+*/
 func respWriteError(err string) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString("-" + err + "\r\n")
