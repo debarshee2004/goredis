@@ -146,3 +146,35 @@ func (p *Peer) parseAppendCommand(arr []resp.Value) (Command, error) {
 		val: arr[2].Bytes(),
 	}, nil
 }
+
+func (p *Peer) parseStrlenCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'STRLEN' command")
+	}
+
+	return StrlenCommand{
+		key: arr[1].Bytes(),
+	}, nil
+}
+
+func (p *Peer) parseGetRangeCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 4 {
+		return nil, fmt.Errorf("wrong number of arguments for 'GETRANGE' command")
+	}
+
+	start, err := strconv.Atoi(arr[2].String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid start index")
+	}
+
+	end, err := strconv.Atoi(arr[3].String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid end index")
+	}
+
+	return GetRangeCommand{
+		key:   arr[1].Bytes(),
+		start: start,
+		end:   end,
+	}, nil
+}
