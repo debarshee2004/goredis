@@ -75,3 +75,35 @@ func (s *Storage) Delete(key []byte) bool {
 
 	return exists
 }
+
+func (s *Storage) Exists(key []byte) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	keyStr := string(key)
+
+	if expTime, exists := s.expiry[keyStr]; exists {
+		if time.Now().After(expTime) {
+			return false
+		}
+	}
+
+	_, exists := s.data[keyStr]
+	return exists
+}
+
+func (s *Storage) Append(key, val []byte) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	keyStr := string(key)
+	existing, exists := s.data[keyStr]
+
+	if !exists {
+		s.data[keyStr] = val
+		return len(val)
+	}
+
+	s.data[keyStr] = append(existing, val...)
+	return len(s.data[keyStr])
+}
