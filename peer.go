@@ -178,3 +178,21 @@ func (p *Peer) parseGetRangeCommand(arr []resp.Value) (Command, error) {
 		end:   end,
 	}, nil
 }
+
+func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 4 {
+		return nil, fmt.Errorf("wrong number of arguments for 'SETRANGE' command")
+	}
+
+	/* Parse offset position */
+	offset, err := strconv.Atoi(arr[2].String())
+	if err != nil {
+		return nil, fmt.Errorf("invalid offset")
+	}
+
+	return SetRangeCommand{
+		key:    arr[1].Bytes(),
+		offset: offset,
+		value:  arr[3].Bytes(),
+	}, nil
+}
