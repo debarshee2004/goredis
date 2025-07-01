@@ -122,3 +122,27 @@ func (p *Peer) parseDelCommand(arr []resp.Value) (Command, error) {
 
 	return DelCommand{keys: keys}, nil
 }
+
+func (p *Peer) parseExistsCommand(arr []resp.Value) (Command, error) {
+	if len(arr) < 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'EXISTS' command")
+	}
+
+	keys := make([][]byte, len(arr)-1)
+	for i := 1; i < len(arr); i++ {
+		keys[i-1] = arr[i].Bytes()
+	}
+
+	return ExistsCommand{keys: keys}, nil
+}
+
+func (p *Peer) parseAppendCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'APPEND' command")
+	}
+
+	return AppendCommand{
+		key: arr[1].Bytes(),
+		val: arr[2].Bytes(),
+	}, nil
+}
