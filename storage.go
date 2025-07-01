@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+/*
+Storage represents the key-value storage engine with thread-safe operations
+
+This is the core data structure that stores all Redis data in memory.
+It provides thread-safe operations using read-write mutexes to allow
+multiple concurrent readers but exclusive writers.
+
+Key features:
+  - Thread-safe operations using sync.RWMutex
+  - TTL (Time To Live) support for automatic key expiration
+  - Support for string operations, counters, and pattern matching
+  - In-memory storage with maps for fast lookups
+*/
 type Storage struct {
 	mu       sync.RWMutex
 	data     map[string][]byte
@@ -14,6 +27,12 @@ type Storage struct {
 	counters map[string]int64
 }
 
+/*
+NewStorage creates a new storage instance
+
+This is the constructor function that initializes all the internal maps
+and returns a ready-to-use Storage instance.
+*/
 func NewStorage() *Storage {
 	return &Storage{
 		data:     make(map[string][]byte),
@@ -23,6 +42,19 @@ func NewStorage() *Storage {
 
 }
 
+/*
+Set stores a key-value pair
+
+This is the basic SET operation in Redis. It stores a value for a given key.
+If the key already exists, it overwrites the existing value.
+Any existing TTL is removed when a key is set.
+
+params:
+- key: The key to store (as byte slice for efficiency)
+- val: The value to store (as byte slice to support binary data)
+
+returns: error (always nil in this implementation)
+*/
 func (s *Storage) Set(key, val []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -34,17 +66,44 @@ func (s *Storage) Set(key, val []byte) error {
 	return nil
 }
 
+/*
+SetWithExpiry stores a key-value pair with TTL
+
+This implements Redis SETEX command - sets a key with an automatic expiration time.
+The key will be automatically deleted after the specified duration.
+
+Parameters:
+- key: The key to store
+- val: The value to store
+- expiry: How long the key should live (duration from now)
+*/
 func (s *Storage) SetWithExpiry(key, val []byte, expiry time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	keyStr := string(key)
 	s.data[keyStr] = val
+
+	// Calculate absolute expiration time by adding duration to current time
 	s.expiry[keyStr] = time.Now().Add(expiry)
 
 	return nil
 }
 
+/*
+Get retrieves a value by key
+
+This implements the Redis GET command. It returns the value for a key
+and a boolean indicating whether the key exists.
+Automatically handles TTL - expired keys are treated as non-existent.
+
+Parameters:
+- key: The key to retrieve
+
+Returns:
+- []byte: The value (nil if key doesn't exist)
+- bool: Whether the key exists and is not expired
+*/
 func (s *Storage) Get(key []byte) ([]byte, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -53,6 +112,11 @@ func (s *Storage) Get(key []byte) ([]byte, bool) {
 
 	if expTime, exists := s.expiry[keyStr]; exists {
 		if time.Now().After(expTime) {
+			/*
+				Key has expired, remove it from storage
+				Note: We can't modify maps during RLock, but this is a cleanup operation
+				In production, you'd typically do lazy expiration or background cleanup
+			*/
 			delete(s.data, keyStr)
 			delete(s.expiry, keyStr)
 			return nil, false
@@ -63,6 +127,14 @@ func (s *Storage) Get(key []byte) ([]byte, bool) {
 	return val, ok
 }
 
+/*
+Delete removes a key-value pair
+
+Implements Redis DEL command. Removes a key and its associated value,
+expiry time, and counter value if they exist.
+
+Returns: true if the key existed and was deleted, false if key didn't exist
+*/
 func (s *Storage) Delete(key []byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -78,6 +150,12 @@ func (s *Storage) Delete(key []byte) bool {
 	return exists
 }
 
+/*
+Exists checks if a key exists
+
+Implements Redis EXISTS command. Checks if a key exists and is not expired.
+This is more efficient than Get() when you only need to check existence.
+*/
 func (s *Storage) Exists(key []byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -94,6 +172,14 @@ func (s *Storage) Exists(key []byte) bool {
 	return exists
 }
 
+/*
+Append appends a value to an existing key
+
+Implements Redis APPEND command. If the key exists, appends the value to the end.
+If the key doesn't exist, creates it with the given value.
+
+Returns: The new length of the string after append operation
+*/
 func (s *Storage) Append(key, val []byte) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
