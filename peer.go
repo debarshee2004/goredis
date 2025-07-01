@@ -13,6 +13,23 @@ import (
 )
 
 /*
+Peer Connection Management for Redis Clone
+
+This file handles individual client connections to our Redis server.
+Each client that connects gets represented by a Peer struct, which manages:
+- Reading commands from the client using RESP protocol
+- Parsing those commands into our internal Command structures
+- Sending responses back to the client
+- Handling client disconnections gracefully
+
+Key concepts:
+- RESP Protocol: Redis uses a specific text-based protocol for communication
+- Command Parsing: Converting raw RESP data into typed Command structs
+- Goroutine per Client: Each client runs in its own goroutine for concurrency
+- Channel Communication: Peers communicate with the main server via channels
+*/
+
+/*
 Peer represents a client connection
 
 This struct encapsulates everything needed to handle a single client connection.
@@ -122,7 +139,31 @@ func (p *Peer) readLoop() error {
 	return nil
 }
 
+/*
+parseCommand parses a RESP value into a Command
+
+This is the main command parsing dispatcher. It takes raw RESP data
+and converts it into one of our typed Command structs.
+
+RESP Command Format:
+Commands come as arrays: ["SET", "key", "value"]
+  - First element is the command name (case-insensitive)
+  - Remaining elements are the arguments
+  - Different commands have different argument requirements
+
+Parameters:
+  - v: The RESP value from the client (should be an array)
+
+Returns: A Command interface implementation, or error if parsing fails
+
+Error cases:
+  - Not an array: Commands must be RESP arrays
+  - Empty array: Must have at least a command name
+  - Unknown command: Command name not recognized
+  - Wrong arguments: Command has wrong number/type of arguments
+*/
 func (p *Peer) parseCommand(v resp.Value) (Command, error) {
+	// Commands must be arrays in RESP protocol
 	if v.Type() != resp.Array {
 		return nil, fmt.Errorf("expected array")
 	}
@@ -132,8 +173,13 @@ func (p *Peer) parseCommand(v resp.Value) (Command, error) {
 		return nil, fmt.Errorf("empty command")
 	}
 
+	// Get command name (case-insensitive)
 	cmdName := strings.ToUpper(arr[0].String())
 
+	/*
+		Dispatch to specific parsing method based on command name
+		Each command has its own parsing logic due to different argument patterns
+	*/
 	switch cmdName {
 	case CommandSET:
 		return p.parseSetCommand(arr)
@@ -180,6 +226,41 @@ func (p *Peer) parseCommand(v resp.Value) (Command, error) {
 	}
 }
 
+/*
+=== COMMAND PARSING METHODS ===
+
+Each method below parses a specific Redis command from RESP array format
+into our internal Command struct. They follow a common pattern:
+
+1. Validate argument count (Redis is strict about this)
+2. Extract and validate each argument
+3. Convert types as needed (strings to integers, etc.)
+4. Return the appropriate Command struct
+
+Common validation patterns:
+- Argument count checking (too few/too many arguments)
+- Type conversion with error handling
+- Optional parameter parsing
+*/
+
+/*
+parseSetCommand parses SET command: SET key value [EX seconds]
+
+SET is one of the most complex basic commands because it supports optional TTL.
+
+Formats:
+  - SET key value (basic set)
+  - SET key value EX seconds (set with expiration)
+
+Validation:
+  - Must have at least 3 arguments (SET, key, value)
+  - If EX is present, must have exactly 5 arguments
+  - EX parameter must be followed by a valid integer
+
+Examples:
+  - ["SET", "name", "John"] -> SetCommand{key: "name", val: "John"}
+  - ["SET", "temp", "data", "EX", "300"] -> SetCommand with 5-minute TTL
+*/
 func (p *Peer) parseSetCommand(arr []resp.Value) (Command, error) {
 	if len(arr) < 3 {
 		return nil, fmt.Errorf("wrong number of arguments for 'SET' command")

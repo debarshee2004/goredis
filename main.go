@@ -66,10 +66,22 @@ func NewServer(cfg Config) *Server {
 	}
 }
 
+/*
+handleConnection handles a new connection by creating a peer and starting its read loop
+This function is called in a goroutine for each new client connection
+It creates a Peer object to represent the client and starts reading commands from them
+*/
 func (s *Server) handleConnection(connection net.Conn) {
+	/*
+		Create a new Peer object to represent this client connection
+		The peer will send messages to msgCh and notify delPeerCh when it disconnects
+	*/
 	peer := NewPeer(connection, s.messageChannel, s.deletePeerChannel)
+
+	// Notify the main server loop that a new peer has connected
 	s.addPeerChannel <- peer
 
+	// Start reading commands from this client. This blocks until the client disconnects or an error occurs
 	if err := peer.readLoop(); err != nil {
 		slog.Error("peer read error", "err", err, "remoteAddress", connection.RemoteAddr())
 	}

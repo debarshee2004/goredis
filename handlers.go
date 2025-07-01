@@ -8,6 +8,25 @@ import (
 )
 
 /*
+Message Handler for Redis Clone
+
+This file contains the core message handling logic that processes commands
+from clients and sends back appropriate responses. It acts as the bridge
+between the parsed commands and the storage engine.
+
+Key responsibilities:
+- Execute commands using the storage engine
+- Handle command execution errors gracefully
+- Format responses according to RESP protocol
+- Send responses back to clients
+- Log errors for debugging and monitoring
+
+The handler is called from the main server loop whenever a command message
+arrives from a client. It must handle all types of commands and ensure
+proper RESP protocol compliance in responses.
+*/
+
+/*
 handleMessage processes incoming command messages from clients
 
 This is the central message processing function that gets called whenever
