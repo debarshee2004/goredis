@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/tidwall/resp"
@@ -155,5 +156,17 @@ func respWriteArray(arr [][]byte) []byte {
 			rw.WriteBytes(item)
 		}
 	}
+	return buf.Bytes()
+}
+
+func respWriteInteger(num int64) []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteString(":" + strconv.FormatInt(num, 10) + "\r\n")
+	return buf.Bytes()
+}
+
+func respWriteError(err string) []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteString("-" + err + "\r\n")
 	return buf.Bytes()
 }
