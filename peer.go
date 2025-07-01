@@ -294,3 +294,30 @@ func (p *Peer) parseFlushAllCommand(arr []resp.Value) (Command, error) {
 
 	return FlushAllCommand{}, nil
 }
+
+func (p *Peer) parseHelloCommand(arr []resp.Value) (Command, error) {
+	value := "2"
+	if len(arr) > 1 {
+		value = arr[1].String()
+	}
+
+	return HelloCommand{value: value}, nil
+}
+
+func (p *Peer) parseClientCommand(arr []resp.Value) (Command, error) {
+	value := ""
+	if len(arr) > 1 {
+		value = arr[1].String()
+	}
+
+	return ClientCommand{value: value}, nil
+}
+
+func (p *Peer) parsePingCommand(arr []resp.Value) (Command, error) {
+	message := ""
+	if len(arr) > 1 {
+		message = arr[1].String()
+	}
+
+	return PingCommand{message: message}, nil
+}
