@@ -184,7 +184,6 @@ func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
 		return nil, fmt.Errorf("wrong number of arguments for 'SETRANGE' command")
 	}
 
-	/* Parse offset position */
 	offset, err := strconv.Atoi(arr[2].String())
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset")
@@ -194,5 +193,32 @@ func (p *Peer) parseSetRangeCommand(arr []resp.Value) (Command, error) {
 		key:    arr[1].Bytes(),
 		offset: offset,
 		value:  arr[3].Bytes(),
+	}, nil
+}
+
+func (p *Peer) parseDecrCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'DECR' command")
+	}
+
+	return DecrCommand{
+		key: arr[1].Bytes(),
+	}, nil
+}
+
+func (p *Peer) parseIncrByCommand(arr []resp.Value) (Command, error) {
+	if len(arr) != 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'INCRBY' command")
+	}
+
+	/* Parse increment value */
+	increment, err := strconv.ParseInt(arr[2].String(), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid increment value")
+	}
+
+	return IncrByCommand{
+		key:       arr[1].Bytes(),
+		increment: increment,
 	}, nil
 }
