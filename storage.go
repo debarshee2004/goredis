@@ -218,3 +218,11 @@ func (s *Storage) IncrBy(key []byte, increment int64) (int64, error) {
 	s.counters[keyStr] = increment
 	return increment, nil
 }
+
+func (s *Storage) Decr(key []byte) (int64, error) {
+	return s.IncrBy(key, -1)
+}
+
+func (s *Storage) DecrBy(key []byte, decrement int64) (int64, error) {
+	return s.IncrBy(key, -decrement)
+}
