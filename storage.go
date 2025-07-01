@@ -42,3 +42,36 @@ func (s *Storage) SetWithExpiry(key, val []byte, expiry time.Duration) error {
 
 	return nil
 }
+
+func (s *Storage) Get(key []byte) ([]byte, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	keyStr := string(key)
+
+	if expTime, exists := s.expiry[keyStr]; exists {
+		if time.Now().After(expTime) {
+			delete(s.data, keyStr)
+			delete(s.expiry, keyStr)
+			return nil, false
+		}
+	}
+
+	val, ok := s.data[keyStr]
+	return val, ok
+}
+
+func (s *Storage) Delete(key []byte) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	keyStr := string(key)
+	_, exists := s.data[keyStr]
+	if exists {
+		delete(s.data, keyStr)
+		delete(s.expiry, keyStr)
+		delete(s.counters, keyStr)
+	}
+
+	return exists
+}
