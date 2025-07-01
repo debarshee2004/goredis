@@ -391,6 +391,15 @@ func (s *Storage) DecrBy(key []byte, decrement int64) (int64, error) {
 	return s.IncrBy(key, -decrement)
 }
 
+/*
+GetSet atomically sets key to value and returns the old value
+
+Implements Redis GETSET command. This is an atomic read-modify operation.
+It's useful for implementing counters, flags, or other patterns where you need
+the previous value while setting a new one.
+
+Returns: The old value and whether the key existed before the operation
+*/
 func (s *Storage) GetSet(key, val []byte) ([]byte, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -404,6 +413,16 @@ func (s *Storage) GetSet(key, val []byte) ([]byte, bool) {
 	return oldVal, exists
 }
 
+/*
+MGet gets multiple values
+
+Implements Redis MGET command. Retrieves values for multiple keys in a single operation.
+This is more efficient than multiple individual GET operations.
+
+Parameters: keys: Slice of keys to retrieve
+
+Returns: Slice of values in the same order as keys (nil for non-existent/expired keys)
+*/
 func (s *Storage) MGet(keys [][]byte) [][]byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -429,6 +448,15 @@ func (s *Storage) MGet(keys [][]byte) [][]byte {
 	return results
 }
 
+/*
+MSet sets multiple key-value pairs
+
+Implements Redis MSET command. Sets multiple keys in a single atomic operation.
+This is more efficient than multiple individual SET operations and ensures
+all keys are set together or none at all.
+
+Parameters: pairs: Map of key-value pairs to set
+*/
 func (s *Storage) MSet(pairs map[string][]byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -441,6 +469,23 @@ func (s *Storage) MSet(pairs map[string][]byte) error {
 	return nil
 }
 
+/*
+Keys returns all keys matching a pattern (simple * wildcard support)
+
+Implements Redis KEYS command. Returns all keys that match the given pattern.
+WARNING: This operation scans all keys and can be slow with large datasets.
+In production Redis, this command is often disabled or discouraged.
+
+Pattern matching rules:
+  - "*" matches all keys
+  - "prefix*" matches keys starting with "prefix"
+  - "*suffix" matches keys ending with "suffix"
+  - "prefix*suffix" matches keys starting with "prefix" and ending with "suffix"
+
+Parameters: pattern: The pattern to match against
+
+Returns: Slice of matching key names
+*/
 func (s *Storage) Keys(pattern string) []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -462,6 +507,13 @@ func (s *Storage) Keys(pattern string) []string {
 	return keys
 }
 
+/*
+FlushAll removes all keys
+
+Implements Redis FLUSHALL command. Removes all data from the storage.
+This is equivalent to restarting with empty storage.
+This operation is atomic - either all data is removed or none.
+*/
 func (s *Storage) FlushAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -471,15 +523,40 @@ func (s *Storage) FlushAll() {
 	s.counters = make(map[string]int64)
 }
 
+/*
+matchPattern provides simple pattern matching with * wildcard
+
+This is a helper function that implements basic glob-style pattern matching.
+It supports the * wildcard which matches any sequence of characters.
+
+Algorithm:
+1. If pattern is "*", match everything
+2. If pattern has no wildcards, do exact match
+3. If pattern has wildcards, split by * and check each part exists in order
+
+Parameters:
+  - key: The string to test
+  - pattern: The pattern to match against
+
+Returns: true if key matches pattern, false otherwise
+
+Examples:
+  - matchPattern("hello", "*") -> true
+  - matchPattern("hello", "hello") -> true
+  - matchPattern("hello", "h*o") -> true
+  - matchPattern("hello", "h*x") -> false
+*/
 func matchPattern(key, pattern string) bool {
 	if pattern == "*" {
 		return true
 	}
 
+	// No wildcards: exact match
 	if !strings.Contains(pattern, "*") {
 		return key == pattern
 	}
 
+	// Split pattern by * and match each part in sequence
 	parts := strings.Split(pattern, "*")
 	keyIndex := 0
 
@@ -488,11 +565,13 @@ func matchPattern(key, pattern string) bool {
 			continue
 		}
 
+		// Find this part in the remaining portion of the key
 		index := strings.Index(key[keyIndex:], part)
 		if index == -1 {
 			return false
 		}
 
+		// First part must match from the beginning (unless pattern starts with *)
 		if i == 0 && index != 0 {
 			return false
 		}
@@ -500,9 +579,11 @@ func matchPattern(key, pattern string) bool {
 		keyIndex += index + len(part)
 	}
 
+	// If pattern ends with *, we're done (anything can follow)
 	if strings.HasSuffix(pattern, "*") {
 		return true
 	}
 
+	// Otherwise, key must end exactly where we finished matching
 	return keyIndex == len(key)
 }
