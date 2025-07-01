@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -275,4 +276,70 @@ func (s *Storage) MSet(pairs map[string][]byte) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) Keys(pattern string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var keys []string
+
+	for key := range s.data {
+		if expTime, exists := s.expiry[key]; exists {
+			if time.Now().After(expTime) {
+				continue
+			}
+		}
+
+		if matchPattern(key, pattern) {
+			keys = append(keys, key)
+		}
+	}
+
+	return keys
+}
+
+func (s *Storage) FlushAll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data = make(map[string][]byte)
+	s.expiry = make(map[string]time.Time)
+	s.counters = make(map[string]int64)
+}
+
+func matchPattern(key, pattern string) bool {
+	if pattern == "*" {
+		return true
+	}
+
+	if !strings.Contains(pattern, "*") {
+		return key == pattern
+	}
+
+	parts := strings.Split(pattern, "*")
+	keyIndex := 0
+
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+
+		index := strings.Index(key[keyIndex:], part)
+		if index == -1 {
+			return false
+		}
+
+		if i == 0 && index != 0 {
+			return false
+		}
+
+		keyIndex += index + len(part)
+	}
+
+	if strings.HasSuffix(pattern, "*") {
+		return true
+	}
+
+	return keyIndex == len(key)
 }
