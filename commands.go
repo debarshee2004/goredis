@@ -43,7 +43,7 @@ const (
 	CommandPING   = "PING"
 )
 
-type Command struct {
+type Command interface {
 	Execute(storage *Storage) ([]byte, error)
 }
 

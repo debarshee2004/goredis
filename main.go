@@ -50,18 +50,18 @@ func (s *Server) handleConnection(connection net.Conn) {
 	peer := NewPeer(connection, s.messageChannel, s.deletePeerChannel)
 	s.addPeerChannel <- peer
 
-	// if err := peer.readLoop(); err != nil {
-	// 	slog.Error("peer read error", "err", err, "remoteAddress", connection.RemoteAddr())
-	// }
+	if err := peer.readLoop(); err != nil {
+		slog.Error("peer read error", "err", err, "remoteAddress", connection.RemoteAddr())
+	}
 }
 
 func (s *Server) loop() {
 	for {
 		select {
-		// case message := <-s.messageChannel:
-		// 	if err := s.handleMessage(message); err != nil {
-		// 		slog.Error("message handling error", "err", err)
-		// 	}
+		case message := <-s.messageChannel:
+			if err := s.handleMessage(message); err != nil {
+				slog.Error("message handling error", "err", err)
+			}
 
 		case <-s.quitChannel:
 			slog.Info("quiting the messaging channel")
