@@ -196,6 +196,12 @@ func (s *Storage) Append(key, val []byte) int {
 	return len(s.data[keyStr])
 }
 
+/*
+Strlen returns the length of a string value
+
+Implements Redis STRLEN command. Returns the length of the value stored at key.
+Returns 0 if key doesn't exist or has expired.
+*/
 func (s *Storage) Strlen(key []byte) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -215,6 +221,19 @@ func (s *Storage) Strlen(key []byte) int {
 	return 0
 }
 
+/*
+GetRange returns a substring of the string value
+
+Implements Redis GETRANGE command. Extracts a portion of the string stored at key.
+Supports negative indices (counting from the end).
+
+Parameters:
+  - key: The key to get substring from
+  - start: Starting index (inclusive)
+  - end: Ending index (inclusive)
+
+Returns: The substring as byte slice
+*/
 func (s *Storage) GetRange(key []byte, start, end int) []byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -227,6 +246,10 @@ func (s *Storage) GetRange(key []byte, start, end int) []byte {
 		}
 	}
 
+	/*
+		Handle negative indices - Redis supports counting from the end
+		Example: -1 means last character, -2 means second to last, etc.
+	*/
 	val, exists := s.data[keyStr]
 	if !exists {
 		return []byte{}
@@ -241,6 +264,7 @@ func (s *Storage) GetRange(key []byte, start, end int) []byte {
 		end = length + end
 	}
 
+	// Bound checking to prevent array out of bounds errors
 	if start < 0 {
 		start = 0
 	}
@@ -251,9 +275,24 @@ func (s *Storage) GetRange(key []byte, start, end int) []byte {
 		return []byte{}
 	}
 
+	// Return the substring - end+1 because slice is exclusive on the right
 	return val[start : end+1]
 }
 
+/*
+SetRange overwrites part of a string at offset
+
+Implements Redis SETRANGE command. Overwrites part of the string stored at key,
+starting at the specified offset, for the length of the value.
+If the key doesn't exist, creates it with padding if necessary.
+
+Parameters:
+  - key: The key to modify
+  - offset: Starting position to overwrite
+  - value: The new value to write at that position
+
+Returns: The length of the string after modification
+*/
 func (s *Storage) SetRange(key []byte, offset int, value []byte) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -262,11 +301,16 @@ func (s *Storage) SetRange(key []byte, offset int, value []byte) int {
 	existing, exists := s.data[keyStr]
 
 	if !exists {
+		/*
+			Create new string with null padding if offset > 0
+			Redis pads with null bytes when setting at an offset beyond string length
+		*/
 		if offset > 0 {
 			existing = make([]byte, offset)
 		}
 	}
 
+	// Extend existing string if the new value would go beyond current length
 	requiredLength := offset + len(value)
 	if len(existing) < requiredLength {
 		newBytes := make([]byte, requiredLength)
@@ -280,10 +324,42 @@ func (s *Storage) SetRange(key []byte, offset int, value []byte) int {
 	return len(existing)
 }
 
+/*
+Incr increments the integer value of a key by 1
+
+Implements Redis INCR command. If key doesn't exist, treats it as 0 and increments.
+The value must be parseable as a 64-bit integer.
+
+Returns: The new value after increment, or error if value is not an integer
+*/
 func (s *Storage) Incr(key []byte) (int64, error) {
 	return s.IncrBy(key, 1)
 }
 
+/*
+Decr decrements the integer value of a key by 1
+
+Implements Redis DECR command. If key doesn't exist, treats it as 0 and decrements.
+*/
+func (s *Storage) Decr(key []byte) (int64, error) {
+	return s.IncrBy(key, -1)
+}
+
+/*
+IncrBy increments the integer value of a key by the given amount
+
+Implements Redis INCRBY command. This is the core increment operation.
+If the key exists, parses its value as integer and adds the increment.
+If key doesn't exist, creates it with the increment value.
+
+This operation is atomic - the read, modify, write sequence is protected by mutex.
+
+Parameters:
+  - key: The key to increment
+  - increment: Amount to add (can be negative for decrement)
+
+Returns: The new value after increment, or error if existing value is not an integer
+*/
 func (s *Storage) IncrBy(key []byte, increment int64) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -306,10 +382,11 @@ func (s *Storage) IncrBy(key []byte, increment int64) (int64, error) {
 	return increment, nil
 }
 
-func (s *Storage) Decr(key []byte) (int64, error) {
-	return s.IncrBy(key, -1)
-}
+/*
+DecrBy decrements the integer value of a key by the given amount
 
+Implements Redis DECRBY command. This is essentially IncrBy with negative increment.
+*/
 func (s *Storage) DecrBy(key []byte, decrement int64) (int64, error) {
 	return s.IncrBy(key, -decrement)
 }
