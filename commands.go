@@ -147,8 +147,24 @@ type IncrCommand struct {
 	key []byte
 }
 
+func (c IncrCommand) Execute(storage *Storage) ([]byte, error) {
+	result, err := storage.Incr(c.key)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(strconv.FormatInt(result, 10)), nil
+}
+
 type DecrCommand struct {
 	key []byte
+}
+
+func (c DecrCommand) Execute(storage *Storage) ([]byte, error) {
+	result, err := storage.Decr(c.key)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(strconv.FormatInt(result, 10)), nil
 }
 
 type IncrByCommand struct {
@@ -156,9 +172,25 @@ type IncrByCommand struct {
 	increment int64
 }
 
+func (c IncrByCommand) Execute(storage *Storage) ([]byte, error) {
+	result, err := storage.IncrBy(c.key, c.increment)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(strconv.FormatInt(result, 10)), nil
+}
+
 type DecrByCommand struct {
 	key       []byte
 	decrement int64
+}
+
+func (c DecrByCommand) Execute(storage *Storage) ([]byte, error) {
+	result, err := storage.DecrBy(c.key, c.decrement)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(strconv.FormatInt(result, 10)), nil
 }
 
 type MGetCommand struct {
