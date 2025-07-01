@@ -248,12 +248,33 @@ type HelloCommand struct {
 	value string
 }
 
+func (c HelloCommand) Execute(storage *Storage) ([]byte, error) {
+	spec := map[string]string{
+		"server":  "redis-clone",
+		"version": "1.0.0",
+		"proto":   "2",
+		"mode":    "standalone",
+	}
+	return respWriteMap(spec), nil
+}
+
 type ClientCommand struct {
 	value string
 }
 
+func (c ClientCommand) Execute(storage *Storage) ([]byte, error) {
+	return []byte("OK"), nil
+}
+
 type PingCommand struct {
 	message string
+}
+
+func (c PingCommand) Execute(storage *Storage) ([]byte, error) {
+	if c.message == "" {
+		return []byte("PONG"), nil
+	}
+	return []byte(c.message), nil
 }
 
 func respWriteMap(m map[string]string) []byte {
