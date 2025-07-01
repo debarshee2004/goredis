@@ -9,50 +9,110 @@ import (
 	"github.com/tidwall/resp"
 )
 
+/*
+Protocol Implementation for Redis Clone
+
+This file implements the Redis communication protocol and command structures.
+It handles parsing Redis commands and formatting responses according to the
+RESP (Redis Serialization Protocol) specification.
+
+Key concepts:
+- Command Pattern: Each Redis command is represented as a struct implementing the Command interface
+- RESP Protocol: Redis uses a specific text protocol for client-server communication
+- Command Categories: Commands are organized by functionality (string, numeric, utility, etc.)
+- Storage Integration: Commands interact with the storage layer to perform operations
+*/
+
+/*
+Redis command constants
+
+These constants define all the Redis commands supported by our implementation.
+They're organized by category to make it easier to understand what each command does.
+*/
 const (
-	// Basic string commands
+	// Basic string commands - fundamental Redis operations
 	CommandSET    = "SET"
 	CommandGET    = "GET"
 	CommandDEL    = "DEL"
 	CommandEXISTS = "EXISTS"
 
-	// String manipulation commands
+	// String manipulation commands - modify existing string values
 	CommandAPPEND   = "APPEND"
 	CommandSTRLEN   = "STRLEN"
 	CommandGETRANGE = "GETRANGE"
 	CommandSETRANGE = "SETRANGE"
 
-	// Numeric commands
+	// Numeric commands - work with integer values
 	CommandINCR   = "INCR"
 	CommandDECR   = "DECR"
 	CommandINCRBY = "INCRBY"
 	CommandDECRBY = "DECRBY"
 
-	// Multiple key commands
+	// Multiple key commands - batch operations
 	CommandMGET = "MGET"
 	CommandMSET = "MSET"
 
-	// Utility commands
+	// Utility commands - administrative and helper operations
 	CommandGETSET   = "GETSET"
 	CommandKEYS     = "KEYS"
 	CommandFLUSHALL = "FLUSHALL"
 
-	// Connection commands
+	// Connection commands - client interaction
 	CommandHELLO  = "HELLO"
 	CommandCLIENT = "CLIENT"
 	CommandPING   = "PING"
 )
 
+/*
+Command interface - all commands must implement this
+
+This is the core of our command pattern implementation. Every Redis command
+is represented as a struct that implements this interface.
+
+The Execute method:
+  - Takes a storage instance to perform operations
+  - Returns the response as bytes (for RESP protocol)
+  - Returns an error if the operation fails
+
+This design allows us to:
+  - Add new commands easily by creating new structs
+  - Handle all commands uniformly in the server
+  - Test commands independently
+  - Separate command logic from protocol handling
+*/
 type Command interface {
 	Execute(storage *Storage) ([]byte, error)
 }
 
+/*
+=== BASIC STRING COMMANDS ===
+
+These are the fundamental Redis operations that most applications use.
+They provide basic key-value storage functionality.
+*/
+
+/*
+SetCommand represents the SET command
+
+SET is the most basic Redis command - it stores a value for a given key.
+This implementation supports optional TTL (Time To Live) for automatic expiration.
+
+Redis syntax: SET key value [EX seconds]
+Example: SET name "John" EX 300 (sets name to John, expires in 5 minutes)
+*/
 type SetCommand struct {
 	key    []byte
 	val    []byte
 	expiry time.Duration
 }
 
+/*
+Execute performs the SET operation
+
+If expiry is specified (> 0), uses SetWithExpiry to automatically delete
+the key after the specified duration. Otherwise, uses regular Set.
+Always returns "OK" on success, matching Redis behavior.
+*/
 func (c SetCommand) Execute(storage *Storage) ([]byte, error) {
 	if c.expiry > 0 {
 		err := storage.SetWithExpiry(c.key, c.val, c.expiry)
@@ -62,10 +122,26 @@ func (c SetCommand) Execute(storage *Storage) ([]byte, error) {
 	return []byte("OK"), err
 }
 
+/*
+GetCommand represents the GET command
+
+GET retrieves the value stored at a key. If the key doesn't exist or has
+expired, Redis returns a null response.
+
+Redis syntax: GET key
+Example: GET name (returns "John" if key exists)
+*/
 type GetCommand struct {
 	key []byte
 }
 
+/*
+Execute performs the GET operation
+
+Returns the stored value if the key exists and hasn't expired.
+Returns an error if the key doesn't exist - this gets converted to
+a null response in the RESP protocol.
+*/
 func (c GetCommand) Execute(storage *Storage) ([]byte, error) {
 	val, ok := storage.Get(c.key)
 	if !ok {
@@ -74,10 +150,26 @@ func (c GetCommand) Execute(storage *Storage) ([]byte, error) {
 	return val, nil
 }
 
+/*
+DelCommand represents the DEL command
+
+DEL removes one or more keys from storage. It returns the number of keys
+that were actually deleted (keys that didn't exist are not counted).
+
+Redis syntax: DEL key1 key2 key3...
+Example: DEL name age city (might return 2 if only name and age existed)
+*/
 type DelCommand struct {
 	keys [][]byte
 }
 
+/*
+Execute performs the DEL operation
+
+Iterates through all provided keys and attempts to delete each one.
+Counts how many keys were actually deleted and returns that count.
+This matches Redis behavior exactly.
+*/
 func (c DelCommand) Execute(storage *Storage) ([]byte, error) {
 	count := 0
 	for _, key := range c.keys {
