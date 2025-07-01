@@ -127,10 +127,20 @@ type GetRangeCommand struct {
 	end   int
 }
 
+func (c GetRangeCommand) Execute(storage *Storage) ([]byte, error) {
+	result := storage.GetRange(c.key, c.start, c.end)
+	return result, nil
+}
+
 type SetRangeCommand struct {
 	key    []byte
 	offset int
 	value  []byte
+}
+
+func (c SetRangeCommand) Execute(storage *Storage) ([]byte, error) {
+	length := storage.SetRange(c.key, c.offset, c.value)
+	return []byte(strconv.Itoa(length)), nil
 }
 
 type IncrCommand struct {
