@@ -2,6 +2,10 @@
 
 A lightweight Redis clone built in Go, supporting core Redis commands, memory management, protocol compliance (RESP), and client-server architecture.
 
+https://github.com/user-attachments/assets/c97dec21-aa87-4ead-9c57-2d8a07509875
+
+| Youtube Channel - [@awesome-coding](https://www.youtube.com/@awesome-coding) shows how to build a simple Redis using Go lang.
+
 ## ⚙️ How the App Works (In Depth)
 
 The GoRedis application operates as a lightweight in-memory key-value database server, mimicking the behavior of Redis using the Go programming language. At its core, it establishes a TCP server using Go’s `net` package, which listens on a configurable port—by default, `:5555`. When a client (such as `redis-cli`) connects, the server spawns a dedicated goroutine to handle all communications with that client, ensuring that connections are managed concurrently and efficiently.
