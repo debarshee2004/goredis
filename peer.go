@@ -5,6 +5,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/tidwall/resp"
 )
@@ -44,8 +47,8 @@ func (p *Peer) readLoop() error {
 
 		cmd, err := p.parseCommand(v)
 		if err != nil {
-			errorResp := respWriteError(fmt.Sprintf("ERR %s", err.Error()))
-			p.Send(errorResp)
+			// errorResp := respWriteError(fmt.Sprintf("ERR %s", err.Error()))
+			// p.Send(errorResp)
 			continue
 		}
 
@@ -56,4 +59,43 @@ func (p *Peer) readLoop() error {
 	}
 
 	return nil
+}
+
+func (p *Peer) parseCommand(v resp.Value) (Command, error) {
+	if v.Type() != resp.Array {
+		return nil, fmt.Errorf("expected array")
+	}
+
+	arr := v.Array()
+	if len(arr) == 0 {
+		return nil, fmt.Errorf("empty command")
+	}
+
+	cmdName := strings.ToUpper(arr[0].String())
+
+	switch cmdName {
+	default:
+		return nil, fmt.Errorf("unknown commands '%s'", cmdName)
+	}
+}
+
+func (p *Peer) parseSetCommand(arr []resp.Value) (Command, error) {
+	if len(arr) < 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'SET' command")
+	}
+
+	cmd := SetCommand{
+		key: arr[1].Bytes(),
+		val: arr[2].Bytes(),
+	}
+
+	if len(arr) >= 5 && strings.ToUpper(arr[3].String()) == "EX" {
+		seconds, err := strconv.Atoi(arr[4].String())
+		if err != nil {
+			return nil, fmt.Errorf("invalid expire time")
+		}
+		cmd.expiry = time.Duration(seconds) * time.Second
+	}
+
+	return cmd, nil
 }
