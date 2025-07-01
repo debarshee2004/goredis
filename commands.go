@@ -1,6 +1,12 @@
 package main
 
-import "time"
+import (
+	"bytes"
+	"fmt"
+	"time"
+
+	"github.com/tidwall/resp"
+)
 
 const (
 	// Basic string commands
@@ -43,7 +49,7 @@ type Command struct {
 type SetCommand struct {
 	key    []byte
 	val    []byte
-	expiry time.Duration // Optional TTL
+	expiry time.Duration
 }
 
 type GetCommand struct {
@@ -126,4 +132,28 @@ type ClientCommand struct {
 
 type PingCommand struct {
 	message string
+}
+
+func respWriteMap(m map[string]string) []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteString("%" + fmt.Sprintf("%d\r\n", len(m)))
+	for k, v := range m {
+		buf.WriteString("+" + k + "\r\n")
+		buf.WriteString("+" + v + "\r\n")
+	}
+	return buf.Bytes()
+}
+
+func respWriteArray(arr [][]byte) []byte {
+	buf := &bytes.Buffer{}
+	buf.WriteString("*" + fmt.Sprintf("%d\r\n", len(arr)))
+	rw := resp.NewWriter(buf)
+	for _, item := range arr {
+		if item == nil {
+			rw.WriteNull()
+		} else {
+			rw.WriteBytes(item)
+		}
+	}
+	return buf.Bytes()
 }
