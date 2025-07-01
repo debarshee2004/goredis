@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"sync"
 	"time"
 )
@@ -190,4 +191,30 @@ func (s *Storage) SetRange(key []byte, offset int, value []byte) int {
 	s.data[keyStr] = existing
 
 	return len(existing)
+}
+
+func (s *Storage) Incr(key []byte) (int64, error) {
+	return s.IncrBy(key, 1)
+}
+
+func (s *Storage) IncrBy(key []byte, increment int64) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	keyStr := string(key)
+
+	if val, exists := s.data[keyStr]; exists {
+		intVal, err := strconv.ParseInt(string(val), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		intVal += increment
+		s.data[keyStr] = []byte(strconv.FormatInt(intVal, 10))
+		s.counters[keyStr] = intVal
+		return intVal, nil
+	}
+
+	s.data[keyStr] = []byte(strconv.FormatInt(increment, 10))
+	s.counters[keyStr] = increment
+	return increment, nil
 }
