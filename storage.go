@@ -126,3 +126,68 @@ func (s *Storage) Strlen(key []byte) int {
 
 	return 0
 }
+
+func (s *Storage) GetRange(key []byte, start, end int) []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	keyStr := string(key)
+
+	if expTime, exists := s.expiry[keyStr]; exists {
+		if time.Now().After(expTime) {
+			return []byte{}
+		}
+	}
+
+	val, exists := s.data[keyStr]
+	if !exists {
+		return []byte{}
+	}
+
+	length := len(val)
+
+	if start < 0 {
+		start = length + start
+	}
+	if end < 0 {
+		end = length + end
+	}
+
+	if start < 0 {
+		start = 0
+	}
+	if end >= length {
+		end = length - 1
+	}
+	if start > end {
+		return []byte{}
+	}
+
+	return val[start : end+1]
+}
+
+func (s *Storage) SetRange(key []byte, offset int, value []byte) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	keyStr := string(key)
+	existing, exists := s.data[keyStr]
+
+	if !exists {
+		if offset > 0 {
+			existing = make([]byte, offset)
+		}
+	}
+
+	requiredLength := offset + len(value)
+	if len(existing) < requiredLength {
+		newBytes := make([]byte, requiredLength)
+		copy(newBytes, existing)
+		existing = newBytes
+	}
+
+	copy(existing[offset:], value)
+	s.data[keyStr] = existing
+
+	return len(existing)
+}
